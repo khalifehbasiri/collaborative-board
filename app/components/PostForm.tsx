@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
+import { Send, Type } from "lucide-react";
 
 type PostType = "suggestion" | "question" | "topic";
 
@@ -32,9 +33,10 @@ export function PostForm() {
 
   if (!isSignedIn) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-6 text-center dark:border-zinc-800 dark:bg-zinc-900/50">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Please sign in to create a post
+      <div className="rounded-[32px] bg-white p-8 text-center shadow-sm">
+        <h3 className="text-xl font-bold mb-2">Join the conversation</h3>
+        <p className="text-gray-500 mb-6">
+          Sign in to share your ideas, questions, and topics with the community.
         </p>
       </div>
     );
@@ -43,56 +45,49 @@ export function PostForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-6"
+      className="rounded-[32px] bg-white p-6 sm:p-8 shadow-sm"
     >
-      <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-        Create a Post
-      </h2>
-
-      <div className="mb-4">
-        <label
-          htmlFor="type"
-          className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-        >
-          Type
-        </label>
-        <select
-          id="type"
-          value={type}
-          onChange={(e) => setType(e.target.value as PostType)}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50 dark:focus:border-blue-400"
-        >
-          <option value="suggestion">Suggestion</option>
-          <option value="question">Question</option>
-          <option value="topic">Topic</option>
-        </select>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-black">
+          Create a Post
+        </h2>
+        <div className="relative">
+          <select
+            id="type"
+            value={type}
+            onChange={(e) => setType(e.target.value as PostType)}
+            className="appearance-none bg-gray-50 pl-10 pr-8 py-2.5 rounded-full text-sm font-medium text-gray-700 border-none focus:ring-2 focus:ring-black/5 cursor-pointer hover:bg-gray-100 transition-colors"
+          >
+            <option value="suggestion">Suggestion</option>
+            <option value="question">Question</option>
+            <option value="topic">Topic</option>
+          </select>
+          <Type className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
       </div>
 
-      <div className="mb-4">
-        <label
-          htmlFor="content"
-          className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-        >
-          Content
-        </label>
+      <div className="mb-6">
         <textarea
           id="content"
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="What would you like to share?"
-          rows={4}
+          placeholder="What's on your mind? Share your thoughts..."
+          rows={3}
           required
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-500 dark:focus:border-blue-400"
+          className="w-full rounded-2xl bg-gray-50 p-4 text-gray-900 placeholder-gray-400 border-none focus:ring-2 focus:ring-black/5 resize-none"
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={!content.trim() || isSubmitting}
-        className="w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 active:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-100 dark:active:bg-zinc-200 sm:w-auto"
-      >
-        {isSubmitting ? "Posting..." : "Post"}
-      </button>
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={!content.trim() || isSubmitting}
+          className="flex items-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition-all hover:bg-zinc-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isSubmitting ? "Posting..." : "Post Update"}
+          <Send className="w-4 h-4" />
+        </button>
+      </div>
     </form>
   );
 }
