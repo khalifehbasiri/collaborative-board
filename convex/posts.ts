@@ -1,19 +1,47 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
-// Get all posts sorted by vote count (descending), then by creation date (descending)
+// Get all posts sorted by creation date (descending), optionally filtered by type
 export const list = query({
-  args: {},
-  handler: async (ctx) => {
-    const posts = await ctx.db.query("posts").order("desc").collect();
+  args: {
+    type: v.optional(v.union(v.literal("suggestion"), v.literal("question"), v.literal("topic"))),
+    sortBy: v.optional(v.union(v.literal("newest"), v.literal("oldest"))),
+  },
+  handler: async (ctx, args) => {
+    // We fetch all posts first because we can't easily sort dynamically in the query
+    // while also filtering by type in memory effectively without fetching all.
+    // For a small app, this is fine. For scale, we'd need specific indexes.
+    let posts = await ctx.db.query("posts").collect();
     
-    // Sort by voteCount descending, then by createdAt descending
-    return posts.sort((a, b) => {
-      if (b.voteCount !== a.voteCount) {
-        return b.voteCount - a.voteCount;
-      }
-      return b.createdAt - a.createdAt;
-    });
+    // Filter by type if provided
+    if (args.type) {
+      posts = posts.filter((post) => post.type === args.type);
+    }
+    
+    // Sort based on sortBy argument
+    if (args.sortBy === "oldest") {
+      posts.sort((a, b) => a.createdAt - b.createdAt);
+    } else {
+      // Default to "newest"
+      posts.sort((a, b) => b.createdAt - a.createdAt);
+    }
+
+    // Fetch comment count for each post
+    const postsWithComments = await Promise.all(
+      posts.map(async (post) => {
+        const comments = await ctx.db
+          .query("comments")
+          .withIndex("by_postId", (q) => q.eq("postId", post._id))
+          .collect();
+        
+        return {
+          ...post,
+          commentCount: comments.length,
+        };
+      })
+    );
+
+    return postsWithComments;
   },
 });
 
@@ -35,7 +63,8 @@ export const create = mutation({
       content: args.content,
       type: args.type,
       createdAt: Date.now(),
-      voteCount: 0,
+      upvotes: 0,
+      downvotes: 0,
     });
 
     return postId;
@@ -72,15 +101,27 @@ export const deletePost = mutation({
       await ctx.db.delete(vote._id);
     }
 
+    // Delete all comments associated with this post
+    const comments = await ctx.db
+      .query("comments")
+      .withIndex("by_postId", (q) => q.eq("postId", args.postId))
+      .collect();
+
+    for (const comment of comments) {
+      await ctx.db.delete(comment._id);
+    }
+
     // Delete the post
     await ctx.db.delete(args.postId);
   },
 });
 
-// Vote on a post (toggle vote - if already voted, remove vote; if not, add vote)
+// Vote on a post
+// Updated to support up/down votes
 export const vote = mutation({
   args: {
     postId: v.id("posts"),
+    voteType: v.union(v.literal("up"), v.literal("down")),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -90,7 +131,6 @@ export const vote = mutation({
 
     const userId = identity.subject;
 
-    // Check if user has already voted on this post
     const existingVote = await ctx.db
       .query("votes")
       .withIndex("by_postId_userId", (q) => 
@@ -103,27 +143,51 @@ export const vote = mutation({
       throw new Error("Post not found");
     }
 
+    const currentUpvotes = post.upvotes || 0;
+    const currentDownvotes = post.downvotes || 0;
+
     if (existingVote) {
-      // Remove vote
-      await ctx.db.delete(existingVote._id);
-      await ctx.db.patch(args.postId, {
-        voteCount: post.voteCount - 1,
-      });
+      if (existingVote.type === args.voteType) {
+        // Toggle off (remove vote)
+        await ctx.db.delete(existingVote._id);
+        if (args.voteType === "up") {
+          await ctx.db.patch(args.postId, { upvotes: currentUpvotes - 1 });
+        } else {
+          await ctx.db.patch(args.postId, { downvotes: currentDownvotes - 1 });
+        }
+      } else {
+        // Switch vote (e.g. up -> down)
+        await ctx.db.patch(existingVote._id, { type: args.voteType });
+        if (args.voteType === "up") {
+          await ctx.db.patch(args.postId, {
+            upvotes: currentUpvotes + 1,
+            downvotes: currentDownvotes - 1,
+          });
+        } else {
+          await ctx.db.patch(args.postId, {
+            upvotes: currentUpvotes - 1,
+            downvotes: currentDownvotes + 1,
+          });
+        }
+      }
     } else {
-      // Add vote
+      // New vote
       await ctx.db.insert("votes", {
         postId: args.postId,
         userId: userId,
+        type: args.voteType,
         createdAt: Date.now(),
       });
-      await ctx.db.patch(args.postId, {
-        voteCount: post.voteCount + 1,
-      });
+      if (args.voteType === "up") {
+        await ctx.db.patch(args.postId, { upvotes: currentUpvotes + 1 });
+      } else {
+        await ctx.db.patch(args.postId, { downvotes: currentDownvotes + 1 });
+      }
     }
   },
 });
 
-// Check if current user has voted on a post
+// Check if current user has voted on a post and get vote type
 export const getVoteStatus = query({
   args: {
     postId: v.id("posts"),
@@ -131,7 +195,7 @@ export const getVoteStatus = query({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      return { hasVoted: false };
+      return { hasVoted: false, voteType: null };
     }
 
     const userId = identity.subject;
@@ -142,6 +206,9 @@ export const getVoteStatus = query({
       )
       .first();
 
-    return { hasVoted: !!vote };
+    return { 
+      hasVoted: !!vote, 
+      voteType: vote ? vote.type : null 
+    };
   },
 });

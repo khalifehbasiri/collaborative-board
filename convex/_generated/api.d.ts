@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as comments from "../comments.js";
 import type * as posts from "../posts.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  comments: typeof comments;
   posts: typeof posts;
 }>;
 
