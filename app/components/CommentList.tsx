@@ -71,7 +71,7 @@ export function CommentList({ postId }: CommentListProps) {
                   <span className="text-xs text-gray-400">
                     {new Date(comment.createdAt).toLocaleDateString()}
                   </span>
-                  {user?.id === comment.authorId && (
+                  {user?.id === comment.authorClerkId && (
                     <button
                       onClick={() => handleDelete(comment._id)}
                       className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"

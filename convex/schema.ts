@@ -2,9 +2,15 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  users: defineTable({
+    clerkId: v.string(),
+    name: v.string(),
+    email: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_clerkId", ["clerkId"]),
+
   posts: defineTable({
-    authorId: v.string(),
-    authorName: v.string(),
+    authorId: v.id("users"),
     content: v.string(),
     type: v.union(v.literal("suggestion"), v.literal("question"), v.literal("topic")),
     createdAt: v.number(),
@@ -16,7 +22,7 @@ export default defineSchema({
 
   votes: defineTable({
     postId: v.id("posts"),
-    userId: v.string(),
+    userId: v.id("users"),
     type: v.union(v.literal("up"), v.literal("down")),
     createdAt: v.number(),
   })
@@ -26,8 +32,7 @@ export default defineSchema({
 
   comments: defineTable({
     postId: v.id("posts"),
-    authorId: v.string(),
-    authorName: v.string(),
+    authorId: v.id("users"),
     content: v.string(),
     createdAt: v.number(),
   })

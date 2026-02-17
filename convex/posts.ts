@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getCurrentUserOrNull, requireCurrentUser } from "./lib/users";
 
 // Get all posts sorted by creation date (descending), optionally filtered by type
 export const list = query({
@@ -8,27 +9,21 @@ export const list = query({
     sortBy: v.optional(v.union(v.literal("newest"), v.literal("oldest"))),
   },
   handler: async (ctx, args) => {
-    // We fetch all posts first because we can't easily sort dynamically in the query
-    // while also filtering by type in memory effectively without fetching all.
-    // For a small app, this is fine. For scale, we'd need specific indexes.
     let posts = await ctx.db.query("posts").collect();
     
-    // Filter by type if provided
     if (args.type) {
       posts = posts.filter((post) => post.type === args.type);
     }
     
-    // Sort based on sortBy argument
     if (args.sortBy === "oldest") {
       posts.sort((a, b) => a.createdAt - b.createdAt);
     } else {
-      // Default to "newest"
       posts.sort((a, b) => b.createdAt - a.createdAt);
     }
 
-    // Fetch comment count for each post
-    const postsWithComments = await Promise.all(
+    return await Promise.all(
       posts.map(async (post) => {
+        const author = await ctx.db.get(post.authorId);
         const comments = await ctx.db
           .query("comments")
           .withIndex("by_postId", (q) => q.eq("postId", post._id))
@@ -36,12 +31,12 @@ export const list = query({
         
         return {
           ...post,
+          authorName: author?.name ?? "Unknown",
+          authorClerkId: author?.clerkId ?? null,
           commentCount: comments.length,
         };
       })
     );
-
-    return postsWithComments;
   },
 });
 
@@ -52,14 +47,10 @@ export const create = mutation({
     type: v.union(v.literal("suggestion"), v.literal("question"), v.literal("topic")),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    const currentUser = await requireCurrentUser(ctx);
 
     const postId = await ctx.db.insert("posts", {
-      authorId: identity.subject,
-      authorName: identity.name || identity.nickname || "Anonymous",
+      authorId: currentUser._id,
       content: args.content,
       type: args.type,
       createdAt: Date.now(),
@@ -77,17 +68,14 @@ export const deletePost = mutation({
     postId: v.id("posts"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    const currentUser = await requireCurrentUser(ctx);
 
     const post = await ctx.db.get(args.postId);
     if (!post) {
       throw new Error("Post not found");
     }
 
-    if (post.authorId !== identity.subject) {
+    if (post.authorId !== currentUser._id) {
       throw new Error("Not authorized to delete this post");
     }
 
@@ -124,17 +112,12 @@ export const vote = mutation({
     voteType: v.union(v.literal("up"), v.literal("down")),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const userId = identity.subject;
+    const currentUser = await requireCurrentUser(ctx);
 
     const existingVote = await ctx.db
       .query("votes")
       .withIndex("by_postId_userId", (q) => 
-        q.eq("postId", args.postId).eq("userId", userId)
+        q.eq("postId", args.postId).eq("userId", currentUser._id)
       )
       .first();
 
@@ -143,8 +126,8 @@ export const vote = mutation({
       throw new Error("Post not found");
     }
 
-    const currentUpvotes = post.upvotes || 0;
-    const currentDownvotes = post.downvotes || 0;
+    const currentUpvotes = post.upvotes;
+    const currentDownvotes = post.downvotes;
 
     if (existingVote) {
       if (existingVote.type === args.voteType) {
@@ -174,7 +157,7 @@ export const vote = mutation({
       // New vote
       await ctx.db.insert("votes", {
         postId: args.postId,
-        userId: userId,
+        userId: currentUser._id,
         type: args.voteType,
         createdAt: Date.now(),
       });
@@ -193,16 +176,15 @@ export const getVoteStatus = query({
     postId: v.id("posts"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const currentUser = await getCurrentUserOrNull(ctx);
+    if (!currentUser) {
       return { hasVoted: false, voteType: null };
     }
 
-    const userId = identity.subject;
     const vote = await ctx.db
       .query("votes")
       .withIndex("by_postId_userId", (q) => 
-        q.eq("postId", args.postId).eq("userId", userId)
+        q.eq("postId", args.postId).eq("userId", currentUser._id)
       )
       .first();
 

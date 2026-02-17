@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { requireCurrentUser } from "./lib/users";
 
 // Get all comments for a post
 export const list = query({
@@ -12,8 +13,17 @@ export const list = query({
       .withIndex("by_postId", (q) => q.eq("postId", args.postId))
       .order("desc")
       .collect();
-    
-    return comments;
+
+    return await Promise.all(
+      comments.map(async (comment) => {
+        const author = await ctx.db.get(comment.authorId);
+        return {
+          ...comment,
+          authorName: author?.name ?? "Unknown",
+          authorClerkId: author?.clerkId ?? null,
+        };
+      })
+    );
   },
 });
 
@@ -24,15 +34,11 @@ export const create = mutation({
     content: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    const currentUser = await requireCurrentUser(ctx);
 
     const commentId = await ctx.db.insert("comments", {
       postId: args.postId,
-      authorId: identity.subject,
-      authorName: identity.name || identity.nickname || "Anonymous",
+      authorId: currentUser._id,
       content: args.content,
       createdAt: Date.now(),
     });
@@ -47,17 +53,14 @@ export const deleteComment = mutation({
     commentId: v.id("comments"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    const currentUser = await requireCurrentUser(ctx);
 
     const comment = await ctx.db.get(args.commentId);
     if (!comment) {
       throw new Error("Comment not found");
     }
 
-    if (comment.authorId !== identity.subject) {
+    if (comment.authorId !== currentUser._id) {
       throw new Error("Not authorized to delete this comment");
     }
 

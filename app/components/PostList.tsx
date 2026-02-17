@@ -10,7 +10,8 @@ import { Trash2, MessageSquare, HelpCircle, Hash, MessageCircle, X, Filter, Arro
 import { useState } from "react";
 
 export function PostList() {
-  const [filterType, setFilterType] = useState<"suggestion" | "question" | "topic" | undefined>(undefined);
+  type PostFilter = "suggestion" | "question" | "topic" | undefined;
+  const [filterType, setFilterType] = useState<PostFilter>(undefined);
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const posts = useQuery(api.posts.list, { type: filterType, sortBy });
   const deletePost = useMutation(api.posts.deletePost);
@@ -65,7 +66,10 @@ export function PostList() {
           </div>
           <select
             value={filterType || "all"}
-            onChange={(e) => setFilterType(e.target.value === "all" ? undefined : e.target.value as any)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setFilterType(value === "all" ? undefined : (value as Exclude<PostFilter, undefined>));
+            }}
             className="bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none"
           >
             <option value="all">All Posts</option>
@@ -109,7 +113,7 @@ export function PostList() {
       ) : (
         <div className="space-y-4">
           {posts.map((post) => {
-            const isOwner = user?.id === post.authorId;
+            const isOwner = user?.id === post.authorClerkId;
             const typeStyle = getTypeStyles(post.type);
             const Icon = typeStyle.icon;
 
