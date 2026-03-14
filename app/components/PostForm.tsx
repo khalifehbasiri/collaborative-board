@@ -33,9 +33,9 @@ export function PostForm() {
 
   if (!isSignedIn) {
     return (
-      <div className="rounded-[32px] bg-white p-8 text-center shadow-sm">
+      <div className="rounded-[32px] bg-background p-8 text-center shadow-sm border border-border">
         <h3 className="text-xl font-bold mb-2">Join the conversation</h3>
-        <p className="text-gray-500 mb-6">
+        <p className="text-muted-foreground mb-6">
           Sign in to share your ideas, questions, and topics with the community.
         </p>
       </div>
@@ -45,10 +45,10 @@ export function PostForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-[32px] bg-white p-6 sm:p-8 shadow-sm"
+      className="rounded-[32px] bg-background p-6 sm:p-8 shadow-sm border border-border"
     >
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-black">
+        <h2 className="text-2xl font-bold text-foreground">
           Create a Post
         </h2>
         <div className="relative">
@@ -56,13 +56,13 @@ export function PostForm() {
             id="type"
             value={type}
             onChange={(e) => setType(e.target.value as PostType)}
-            className="appearance-none bg-gray-50 pl-10 pr-8 py-2.5 rounded-full text-sm font-medium text-gray-700 border-none focus:ring-2 focus:ring-black/5 cursor-pointer hover:bg-gray-100 transition-colors"
+            className="appearance-none bg-muted pl-10 pr-8 py-2.5 rounded-full text-sm font-medium text-muted-foreground border border-border focus:ring-2 focus:ring-accent/10 cursor-pointer hover:bg-muted transition-colors"
           >
             <option value="suggestion">Suggestion</option>
             <option value="question">Question</option>
             <option value="topic">Topic</option>
           </select>
-          <Type className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Type className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
       </div>
 
@@ -74,7 +74,7 @@ export function PostForm() {
           placeholder="What's on your mind? Share your thoughts..."
           rows={3}
           required
-          className="w-full rounded-2xl bg-gray-50 p-4 text-gray-900 placeholder-gray-400 border-none focus:ring-2 focus:ring-black/5 resize-none"
+          className="w-full rounded-2xl bg-muted p-4 text-foreground placeholder-muted-foreground border border-border focus:ring-2 focus:ring-accent/10 resize-none"
         />
       </div>
 
@@ -82,7 +82,7 @@ export function PostForm() {
         <button
           type="submit"
           disabled={!content.trim() || isSubmitting}
-          className="flex items-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition-all hover:bg-zinc-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-accent-foreground transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? "Posting..." : "Post Update"}
           <Send className="w-4 h-4" />

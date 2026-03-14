@@ -52,29 +52,29 @@ export function CommentList({ postId }: CommentListProps) {
   };
 
   if (comments === undefined) {
-    return <div className="text-center py-4 text-gray-500">Loading comments...</div>;
+    return <div className="text-center py-4 text-muted-foreground">Loading comments...</div>;
   }
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
         {comments.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             No comments yet. Be the first to start the conversation!
           </div>
         ) : (
           comments.map((comment) => (
-            <div key={comment._id} className="bg-gray-50 p-3 rounded-lg group">
+            <div key={comment._id} className="bg-muted p-3 rounded-lg group">
               <div className="flex justify-between items-start mb-1">
-                <span className="font-semibold text-sm text-gray-900">{comment.authorName}</span>
+                <span className="font-semibold text-sm text-foreground">{comment.authorName}</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-muted-foreground">
                     {new Date(comment.createdAt).toLocaleDateString()}
                   </span>
                   {user?.id === comment.authorClerkId && (
                     <button
                       onClick={() => handleDelete(comment._id)}
-                      className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                       aria-label="Delete comment"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -82,7 +82,7 @@ export function CommentList({ postId }: CommentListProps) {
                   )}
                 </div>
               </div>
-              <p className="text-gray-700 text-sm">{comment.content}</p>
+              <p className="text-muted-foreground text-sm">{comment.content}</p>
             </div>
           ))
         )}
@@ -95,19 +95,19 @@ export function CommentList({ postId }: CommentListProps) {
             onChange={(e) => setNewComment(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Write a comment..."
-            className="w-full p-3 pr-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-20 text-sm"
+            className="w-full p-3 pr-10 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-20 text-sm bg-background text-foreground"
             disabled={isSubmitting}
           />
           <button
             type="submit"
             disabled={!newComment.trim() || isSubmitting}
-            className="absolute bottom-3 right-3 text-blue-500 disabled:text-gray-300 hover:text-blue-600 transition-colors"
+            className="absolute bottom-3 right-3 text-blue-500 disabled:text-muted-foreground hover:text-blue-600 transition-colors"
           >
             <Send className="w-4 h-4" />
           </button>
         </form>
       ) : (
-        <div className="text-center py-2 text-sm text-gray-500 bg-gray-50 rounded-lg">
+        <div className="text-center py-2 text-sm text-muted-foreground bg-muted rounded-lg">
           Please sign in to comment.
         </div>
       )}

@@ -16,7 +16,7 @@ export function AuthButton() {
       <UserButton
         appearance={{
           elements: {
-            avatarBox: "h-10 w-10",
+            avatarBox: "h-10 w-10 border border-border",
           },
         }}
       />
@@ -26,12 +26,12 @@ export function AuthButton() {
   return (
     <div className="flex items-center gap-3">
       <SignInButton mode="modal">
-        <button className="hidden sm:block px-6 py-2.5 rounded-full border border-gray-300 text-sm font-medium text-black hover:border-black transition-colors">
+        <button className="hidden sm:block px-6 py-2.5 rounded-full border border-border text-sm font-medium text-foreground hover:border-foreground transition-colors">
           Sign In
         </button>
       </SignInButton>
       <SignUpButton mode="modal">
-        <button className="px-6 py-2.5 rounded-full bg-black text-white text-sm font-medium hover:bg-zinc-800 transition-colors">
+        <button className="px-6 py-2.5 rounded-full bg-accent text-accent-foreground text-sm font-medium hover:opacity-90 transition-colors">
           Sign Up
         </button>
       </SignUpButton>
