@@ -27,45 +27,48 @@ export function VoteButton({ postId, upvotes, downvotes }: VoteButtonProps) {
   };
 
   const userVoteType = voteStatus?.voteType;
+  const score = upvotes - downvotes;
 
   return (
-    <div className="flex items-center gap-1 bg-muted rounded-full p-1">
+    <div className="inline-flex items-center rounded-full bg-muted p-1">
       <button
         onClick={() => handleVote("up")}
         disabled={!isSignedIn}
-        className={`flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium transition-all ${
+        className={`grid size-8 place-items-center rounded-full transition-all ${
           userVoteType === "up"
-            ? "bg-background text-green-500 shadow-sm"
-            : "text-muted-foreground hover:bg-muted"
+            ? "bg-accent text-white shadow-sm"
+            : "text-muted-foreground hover:bg-surface hover:text-accent"
         } ${
           !isSignedIn
             ? "cursor-not-allowed opacity-50"
             : "cursor-pointer active:scale-95"
         }`}
         aria-label="Upvote"
+        title={isSignedIn ? "Upvote" : "Sign in to vote"}
       >
-        <ChevronUp className={`w-4 h-4 ${userVoteType === "up" ? "stroke-[3]" : "stroke-[2.5]"}`} />
-        <span>{upvotes}</span>
+        <ChevronUp className="size-4" strokeWidth={3} />
       </button>
 
-      <div className="w-px h-4 bg-border mx-1"></div>
+      <span className="min-w-9 px-1 text-center font-mono text-xs font-bold" aria-label={`${score} net votes`}>
+        {score}
+      </span>
 
       <button
         onClick={() => handleVote("down")}
         disabled={!isSignedIn}
-        className={`flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium transition-all ${
+        className={`grid size-8 place-items-center rounded-full transition-all ${
           userVoteType === "down"
-            ? "bg-background text-red-500 shadow-sm"
-            : "text-muted-foreground hover:bg-muted"
+            ? "bg-secondary text-secondary-foreground shadow-sm"
+            : "text-muted-foreground hover:bg-surface hover:text-secondary"
         } ${
           !isSignedIn
             ? "cursor-not-allowed opacity-50"
             : "cursor-pointer active:scale-95"
         }`}
         aria-label="Downvote"
+        title={isSignedIn ? "Downvote" : "Sign in to vote"}
       >
-        <ChevronDown className={`w-4 h-4 ${userVoteType === "down" ? "stroke-[3]" : "stroke-[2.5]"}`} />
-        <span>{downvotes}</span>
+        <ChevronDown className="size-4" strokeWidth={3} />
       </button>
     </div>
   );

@@ -1,58 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { Moon, SunMedium } from "lucide-react";
 
 type Theme = "light" | "dark";
 
+function getThemeSnapshot(): Theme {
+  const stored = window.localStorage.getItem("theme") as Theme | null;
+  if (stored) return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function subscribeToTheme(callback: () => void) {
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const handleChange = () => callback();
+
+  window.addEventListener("themechange", handleChange);
+  mediaQuery.addEventListener("change", handleChange);
+
+  return () => {
+    window.removeEventListener("themechange", handleChange);
+    mediaQuery.removeEventListener("change", handleChange);
+  };
+}
+
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("light");
-  const [mounted, setMounted] = useState(false);
+  const theme = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, () => "light");
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("theme") as Theme | null;
-    if (stored) {
-      setTheme(stored);
-      document.documentElement.dataset.theme = stored;
-    } else {
-      const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      const initial: Theme = systemPrefersDark ? "dark" : "light";
-      setTheme(initial);
-      document.documentElement.dataset.theme = initial;
-    }
-    setMounted(true);
-  }, []);
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   const toggleTheme = () => {
     const next: Theme = theme === "light" ? "dark" : "light";
-    setTheme(next);
     window.localStorage.setItem("theme", next);
     document.documentElement.dataset.theme = next;
+    window.dispatchEvent(new Event("themechange"));
   };
-
-  if (!mounted) {
-    return (
-      <button
-        type="button"
-        className="w-10 h-10 rounded-full border border-border flex items-center justify-center text-muted-foreground"
-        aria-label="Toggle theme"
-      >
-        <SunMedium className="w-4 h-4" />
-      </button>
-    );
-  }
 
   return (
     <button
       type="button"
       onClick={toggleTheme}
-      className="w-10 h-10 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
-      aria-label="Toggle theme"
+      className="grid size-10 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2"
+      aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
     >
       {theme === "light" ? (
-        <Moon className="w-4 h-4" />
+        <Moon className="size-4" />
       ) : (
-        <SunMedium className="w-4 h-4" />
+        <SunMedium className="size-4" />
       )}
     </button>
   );

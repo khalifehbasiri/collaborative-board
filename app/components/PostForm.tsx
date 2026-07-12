@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
-import { Send, Type } from "lucide-react";
+import { CircleHelp, Lightbulb, MessageSquareText, Send } from "lucide-react";
 
 type PostType = "suggestion" | "question" | "topic";
 
 export function PostForm() {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
   const createPost = useMutation(api.posts.create);
   const [content, setContent] = useState("");
   const [type, setType] = useState<PostType>("suggestion");
@@ -33,10 +33,13 @@ export function PostForm() {
 
   if (!isSignedIn) {
     return (
-      <div className="rounded-[32px] bg-background p-8 text-center shadow-sm border border-border">
-        <h3 className="text-xl font-bold mb-2">Join the conversation</h3>
-        <p className="text-muted-foreground mb-6">
-          Sign in to share your ideas, questions, and topics with the community.
+      <div className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-accent">
+          Your voice belongs here
+        </p>
+        <h2 className="mt-2 font-display text-xl font-bold tracking-[-0.03em]">Join the conversation</h2>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+          Sign in from the top navigation to share an idea, ask a question, or open a topic for the community.
         </p>
       </div>
     );
@@ -45,48 +48,69 @@ export function PostForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-[32px] bg-background p-6 sm:p-8 shadow-sm border border-border"
+      className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm"
     >
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-foreground">
-          Create a Post
-        </h2>
-        <div className="relative">
-          <select
-            id="type"
-            value={type}
-            onChange={(e) => setType(e.target.value as PostType)}
-            className="appearance-none bg-muted pl-10 pr-8 py-2.5 rounded-full text-sm font-medium text-muted-foreground border border-border focus:ring-2 focus:ring-accent/10 cursor-pointer hover:bg-muted transition-colors"
-          >
-            <option value="suggestion">Suggestion</option>
-            <option value="question">Question</option>
-            <option value="topic">Topic</option>
-          </select>
-          <Type className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+      <div className="flex items-center gap-3 border-b border-border p-4 sm:p-5">
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-foreground font-display text-sm font-bold text-background">
+          {(user?.firstName?.[0] || user?.username?.[0] || "Y").toUpperCase()}
+        </span>
+        <div>
+          <h2 className="font-display text-base font-bold tracking-[-0.02em]">Add to the board</h2>
+          <p className="text-xs text-muted-foreground">Give the room something clear to respond to.</p>
         </div>
       </div>
 
-      <div className="mb-6">
+      <div className="p-4 sm:p-5">
         <textarea
           id="content"
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="What's on your mind? Share your thoughts..."
-          rows={3}
+          placeholder="Share an idea, ask a focused question, or start a useful discussion..."
+          rows={4}
+          maxLength={800}
           required
-          className="w-full rounded-2xl bg-muted p-4 text-foreground placeholder-muted-foreground border border-border focus:ring-2 focus:ring-accent/10 resize-none"
+          className="w-full resize-none rounded-xl border border-border bg-background p-4 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
-      </div>
 
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={!content.trim() || isSubmitting}
-          className="flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-accent-foreground transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSubmitting ? "Posting..." : "Post Update"}
-          <Send className="w-4 h-4" />
-        </button>
+        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <fieldset>
+            <legend className="sr-only">Post type</legend>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "suggestion", label: "Suggestion", icon: Lightbulb },
+                { value: "question", label: "Question", icon: CircleHelp },
+                { value: "topic", label: "Topic", icon: MessageSquareText },
+              ].map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setType(value as PostType)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-bold transition ${
+                    type === value
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-surface text-muted-foreground hover:border-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-pressed={type === value}
+                >
+                  <Icon className="size-3.5" aria-hidden="true" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="flex items-center justify-between gap-4 sm:justify-end">
+            <span className="font-mono text-[10px] text-muted-foreground">{content.length}/800</span>
+            <button
+              type="submit"
+              disabled={!content.trim() || isSubmitting}
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {isSubmitting ? "Posting…" : "Post"}
+              <Send className="size-4" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
       </div>
     </form>
   );

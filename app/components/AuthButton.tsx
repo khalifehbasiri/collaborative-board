@@ -7,7 +7,7 @@ export function AuthButton() {
 
   if (!isLoaded) {
     return (
-      <div className="h-10 w-10 animate-pulse rounded-full bg-gray-200" />
+      <div className="size-10 animate-pulse rounded-full bg-muted" aria-hidden="true" />
     );
   }
 
@@ -16,7 +16,7 @@ export function AuthButton() {
       <UserButton
         appearance={{
           elements: {
-            avatarBox: "h-10 w-10 border border-border",
+            avatarBox: "size-10 border border-border",
           },
         }}
       />
@@ -24,15 +24,15 @@ export function AuthButton() {
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
       <SignInButton mode="modal">
-        <button className="hidden sm:block px-6 py-2.5 rounded-full border border-border text-sm font-medium text-foreground hover:border-foreground transition-colors">
+        <button className="hidden rounded-full px-3 py-2 text-sm font-bold text-foreground transition hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 sm:block">
           Sign In
         </button>
       </SignInButton>
       <SignUpButton mode="modal">
-        <button className="px-6 py-2.5 rounded-full bg-accent text-accent-foreground text-sm font-medium hover:opacity-90 transition-colors">
-          Sign Up
+        <button className="rounded-full bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2">
+          Join
         </button>
       </SignUpButton>
     </div>

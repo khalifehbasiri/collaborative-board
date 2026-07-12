@@ -1,17 +1,62 @@
-"use client";
-
+import type { Metadata } from "next";
 import { Navigation } from "../components/Navigation";
 import { PostForm } from "../components/PostForm";
 import { PostList } from "../components/PostList";
+import { BoardSidebar } from "../components/BoardSidebar";
+import { CommunityPanel } from "../components/CommunityPanel";
+import { CircleHelp, Flame, Lightbulb, MessageSquareText } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Live board",
+  description: "Join the live Collab Board community feed.",
+};
 
 export default function Dashboard() {
   return (
-    <div className="min-h-screen bg-muted font-sans text-foreground">
+    <div className="min-h-screen bg-background font-sans text-foreground">
       <Navigation />
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="space-y-8">
-          <PostForm />
-          <PostList />
+      <main className="mx-auto max-w-360 px-3 py-5 sm:px-6 sm:py-8">
+        <div className="mb-5 flex items-end justify-between gap-5 lg:hidden">
+          <div>
+            <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-secondary">
+              <span className="size-1.5 rounded-full bg-secondary" />
+              84 online now
+            </div>
+            <h1 className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] sm:text-3xl">
+              Community feed
+            </h1>
+          </div>
+        </div>
+
+        <div className="mb-5 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+          {[
+            { label: "Popular", icon: Flame, color: "text-accent" },
+            { label: "Suggestions", icon: Lightbulb, color: "text-accent" },
+            { label: "Questions", icon: CircleHelp, color: "text-secondary" },
+            { label: "Topics", icon: MessageSquareText, color: "text-violet-500" },
+          ].map(({ label, icon: Icon, color }) => (
+            <a
+              key={label}
+              href="#feed"
+              className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-surface px-3.5 py-2 text-xs font-bold"
+            >
+              <Icon className={`size-3.5 ${color}`} />
+              {label}
+            </a>
+          ))}
+        </div>
+
+        <div className="grid items-start gap-5 lg:grid-cols-[190px_minmax(0,720px)] xl:grid-cols-[190px_minmax(0,720px)_300px]">
+          <BoardSidebar />
+          <div className="min-w-0 space-y-5">
+            <div id="create" className="scroll-mt-24">
+              <PostForm />
+            </div>
+            <div id="feed" className="scroll-mt-24">
+              <PostList />
+            </div>
+          </div>
+          <CommunityPanel />
         </div>
       </main>
     </div>

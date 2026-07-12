@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { ConvexClientProvider } from "./ConvexClientProvider";
@@ -14,9 +14,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "Collaborative Board",
-  description: "Real-time collaborative board for posting and voting",
+  title: {
+    default: "Collab Board — Ideas move forward together",
+    template: "%s | Collab Board",
+  },
+  description:
+    "A real-time community board for sharing ideas, asking questions, and deciding what to build next.",
 };
 
 export default function RootLayout({
@@ -27,7 +36,9 @@ export default function RootLayout({
   return (
     <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
       <html lang="en" suppressHydrationWarning>
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} bg-background text-foreground antialiased`}
+        >
           <ConvexClientProvider>{children}</ConvexClientProvider>
         </body>
       </html>
