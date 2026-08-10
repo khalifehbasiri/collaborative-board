@@ -20,7 +20,7 @@ export default function Dashboard() {
           <div>
             <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-secondary">
               <span className="size-1.5 rounded-full bg-secondary" />
-              84 online now
+              Live demo data
             </div>
             <h1 className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] sm:text-3xl">
               Community feed

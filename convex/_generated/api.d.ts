@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as comments from "../comments.js";
 import type * as lib_users from "../lib/users.js";
 import type * as posts from "../posts.js";
+import type * as stats from "../stats.js";
 
 import type {
   ApiFromModules,
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   comments: typeof comments;
   "lib/users": typeof lib_users;
   posts: typeof posts;
+  stats: typeof stats;
 }>;
 
 /**

@@ -1,7 +1,15 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowRight, Radio, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { ArrowRight, ChevronUp, MessageCircle, Radio, ShieldCheck } from "lucide-react";
 
 export function CommunityPanel() {
+  const stats = useQuery(api.stats.community);
+  const formatMetric = (value: number | undefined) =>
+    value === undefined ? "—" : value.toLocaleString("en-US");
+
   return (
     <aside className="sticky top-20 hidden self-start space-y-4 xl:block">
       <section className="overflow-hidden rounded-2xl border border-border bg-surface">
@@ -14,14 +22,18 @@ export function CommunityPanel() {
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             A live room for useful ideas, honest questions, and decisions people can understand.
           </p>
-          <div className="mt-5 grid grid-cols-2 gap-3 border-y border-border py-4">
+          <div className="mt-3 flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-secondary">
+            <span className="size-1.5 rounded-full bg-secondary" aria-hidden="true" />
+            Live demo data
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 border-y border-border py-4" aria-live="polite">
             <div>
-              <p className="font-display text-xl font-bold">1,248</p>
+              <p className="font-display text-xl font-bold">{formatMetric(stats?.members)}</p>
               <p className="text-[11px] text-muted-foreground">members</p>
             </div>
             <div>
-              <p className="font-display text-xl font-bold text-secondary">84</p>
-              <p className="text-[11px] text-muted-foreground">online now</p>
+              <p className="font-display text-xl font-bold text-secondary">{formatMetric(stats?.ideas)}</p>
+              <p className="text-[11px] text-muted-foreground">ideas shared</p>
             </div>
           </div>
           <Link
@@ -60,14 +72,18 @@ export function CommunityPanel() {
 
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-foreground p-4 text-background">
-          <Users className="size-4 text-accent" />
-          <p className="mt-6 font-display text-xl font-bold">+126</p>
-          <p className="mt-1 text-[10px] text-background/60">this month</p>
+          <ChevronUp className="size-4 text-accent" />
+          <p className="mt-6 font-display text-xl font-bold" aria-live="polite">
+            {formatMetric(stats?.votes)}
+          </p>
+          <p className="mt-1 text-[10px] text-background/60">votes cast</p>
         </div>
         <div className="rounded-2xl bg-secondary p-4 text-secondary-foreground">
-          <Sparkles className="size-4" />
-          <p className="mt-6 font-display text-xl font-bold">73%</p>
-          <p className="mt-1 text-[10px] opacity-65">ideas actioned</p>
+          <MessageCircle className="size-4" />
+          <p className="mt-6 font-display text-xl font-bold" aria-live="polite">
+            {formatMetric(stats?.comments)}
+          </p>
+          <p className="mt-1 text-[10px] opacity-65">comments shared</p>
         </div>
       </div>
     </aside>

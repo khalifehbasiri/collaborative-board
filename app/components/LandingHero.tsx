@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import {
   ArrowRight,
   Check,
@@ -7,7 +11,6 @@ import {
   Lightbulb,
   MessageCircle,
   Radio,
-  Sparkles,
   Users,
 } from "lucide-react";
 
@@ -16,8 +19,6 @@ const previewPosts = [
     type: "Suggestion",
     title: "Let teams pin the decisions that came out of a thread",
     body: "Great conversations should end with a clear next step everyone can find.",
-    votes: 42,
-    comments: 9,
     color: "bg-accent",
     icon: Lightbulb,
   },
@@ -25,14 +26,16 @@ const previewPosts = [
     type: "Question",
     title: "Which onboarding moment feels the most confusing?",
     body: "Share a screenshot or describe where you paused.",
-    votes: 27,
-    comments: 18,
     color: "bg-secondary",
     icon: CircleHelp,
   },
 ];
 
 export function LandingHero() {
+  const stats = useQuery(api.stats.community);
+  const formatMetric = (value: number | undefined) =>
+    value === undefined ? "—" : value.toLocaleString("en-US");
+
   return (
     <>
       <section className="relative overflow-hidden border-b border-border bg-surface">
@@ -84,11 +87,15 @@ export function LandingHero() {
             <div className="overflow-hidden rounded-[28px] border border-border bg-background shadow-[0_30px_80px_rgba(20,29,34,0.14)]">
               <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 sm:px-5">
                 <div>
-                  <p className="font-display text-sm font-bold">Product circle</p>
-                  <p className="text-xs text-muted-foreground">1,248 people · 84 online</p>
+                  <p className="font-display text-sm font-bold">Collab Board community</p>
+                  <p className="text-xs text-muted-foreground" aria-live="polite">
+                    {stats === undefined
+                      ? "Loading live demo data…"
+                      : `${formatMetric(stats.members)} members · ${formatMetric(stats.ideas)} ideas`}
+                  </p>
                 </div>
                 <span className="rounded-full bg-secondary/10 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-secondary">
-                  Live
+                  Live demo
                 </span>
               </div>
 
@@ -107,7 +114,7 @@ export function LandingHero() {
                         </span>
                         {post.type}
                         <span>·</span>
-                        posted 12m ago
+                        example post
                       </div>
                       <h2 className="font-display text-base font-bold leading-snug tracking-[-0.02em] sm:text-lg">
                         {post.title}
@@ -116,11 +123,11 @@ export function LandingHero() {
                       <div className="mt-4 flex items-center gap-3">
                         <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1.5 text-xs font-bold">
                           <ChevronUp className="size-4 text-accent" strokeWidth={3} />
-                          {post.votes}
+                          Vote
                         </span>
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                           <MessageCircle className="size-4" />
-                          {post.comments}
+                          Discuss
                         </span>
                       </div>
                     </article>
@@ -128,14 +135,18 @@ export function LandingHero() {
                 })}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-2xl bg-foreground p-4 text-background">
-                    <Radio className="mb-5 size-5 text-accent" />
-                    <p className="font-display text-2xl font-bold">84</p>
-                    <p className="mt-1 text-xs text-background/65">people here now</p>
+                    <ChevronUp className="mb-5 size-5 text-accent" />
+                    <p className="font-display text-2xl font-bold" aria-live="polite">
+                      {formatMetric(stats?.votes)}
+                    </p>
+                    <p className="mt-1 text-xs text-background/65">votes cast</p>
                   </div>
                   <div className="rounded-2xl bg-secondary p-4 text-secondary-foreground">
-                    <Sparkles className="mb-5 size-5" />
-                    <p className="font-display text-2xl font-bold">73%</p>
-                    <p className="mt-1 text-xs opacity-75">ideas moved forward</p>
+                    <MessageCircle className="mb-5 size-5" />
+                    <p className="font-display text-2xl font-bold" aria-live="polite">
+                      {formatMetric(stats?.comments)}
+                    </p>
+                    <p className="mt-1 text-xs opacity-75">comments shared</p>
                   </div>
                 </div>
               </div>
