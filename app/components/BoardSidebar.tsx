@@ -3,14 +3,14 @@ import { CircleHelp, Flame, Home, Lightbulb, MessageSquareText, Plus } from "luc
 
 const feedLinks = [
   { href: "/dashboard", label: "Home feed", icon: Home },
-  { href: "/dashboard#feed", label: "Popular now", icon: Flame },
+  { href: "/dashboard?sort=popular#feed", label: "Popular now", icon: Flame },
   { href: "/dashboard#create", label: "Create a post", icon: Plus },
 ];
 
 const topicLinks = [
-  { href: "/dashboard#feed", label: "Suggestions", icon: Lightbulb, color: "text-accent" },
-  { href: "/dashboard#feed", label: "Questions", icon: CircleHelp, color: "text-secondary" },
-  { href: "/dashboard#feed", label: "Open topics", icon: MessageSquareText, color: "text-violet-500" },
+  { href: "/dashboard?type=suggestion#feed", label: "Suggestions", icon: Lightbulb, color: "text-accent" },
+  { href: "/dashboard?type=question#feed", label: "Questions", icon: CircleHelp, color: "text-secondary" },
+  { href: "/dashboard?type=topic#feed", label: "Open topics", icon: MessageSquareText, color: "text-violet-500" },
 ];
 
 export function BoardSidebar() {

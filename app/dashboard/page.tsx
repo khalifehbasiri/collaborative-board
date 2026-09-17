@@ -5,6 +5,8 @@ import { PostList } from "../components/PostList";
 import { BoardSidebar } from "../components/BoardSidebar";
 import { CommunityPanel } from "../components/CommunityPanel";
 import { CircleHelp, Flame, Lightbulb, MessageSquareText } from "lucide-react";
+import Link from "next/link";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Live board",
@@ -30,19 +32,19 @@ export default function Dashboard() {
 
         <div className="mb-5 flex gap-2 overflow-x-auto pb-1 lg:hidden">
           {[
-            { label: "Popular", icon: Flame, color: "text-accent" },
-            { label: "Suggestions", icon: Lightbulb, color: "text-accent" },
-            { label: "Questions", icon: CircleHelp, color: "text-secondary" },
-            { label: "Topics", icon: MessageSquareText, color: "text-violet-500" },
-          ].map(({ label, icon: Icon, color }) => (
-            <a
+            { label: "Popular", href: "/dashboard?sort=popular#feed", icon: Flame, color: "text-accent" },
+            { label: "Suggestions", href: "/dashboard?type=suggestion#feed", icon: Lightbulb, color: "text-accent" },
+            { label: "Questions", href: "/dashboard?type=question#feed", icon: CircleHelp, color: "text-secondary" },
+            { label: "Topics", href: "/dashboard?type=topic#feed", icon: MessageSquareText, color: "text-violet-500" },
+          ].map(({ label, href, icon: Icon, color }) => (
+            <Link
               key={label}
-              href="#feed"
+              href={href}
               className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-surface px-3.5 py-2 text-xs font-bold"
             >
               <Icon className={`size-3.5 ${color}`} />
               {label}
-            </a>
+            </Link>
           ))}
         </div>
 
@@ -53,7 +55,9 @@ export default function Dashboard() {
               <PostForm />
             </div>
             <div id="feed" className="scroll-mt-24">
-              <PostList />
+              <Suspense fallback={<div className="rounded-2xl border border-border bg-surface p-8 text-center text-sm font-semibold text-muted-foreground">Loading feed…</div>}>
+                <PostList />
+              </Suspense>
             </div>
           </div>
           <CommunityPanel />

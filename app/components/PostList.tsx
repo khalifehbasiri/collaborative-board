@@ -6,17 +6,74 @@ import { VoteButton } from "./VoteButton";
 import { CommentList } from "./CommentList";
 import { useUser } from "@clerk/nextjs";
 import { Id } from "../../convex/_generated/dataModel";
-import { Trash2, MessageSquare, HelpCircle, Hash, MessageCircle, X, Filter, ArrowUpDown } from "lucide-react";
-import { useState } from "react";
+import { Trash2, MessageSquare, HelpCircle, Hash, MessageCircle, X, Filter, ArrowUpDown, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export function PostList() {
-  type PostFilter = "suggestion" | "question" | "topic" | undefined;
-  const [filterType, setFilterType] = useState<PostFilter>(undefined);
-  const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
-  const posts = useQuery(api.posts.list, { type: filterType, sortBy });
+  type PostFilter = "all" | "suggestion" | "question" | "topic" | "unanswered";
+  type PostSort = "newest" | "oldest" | "popular";
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const requestedFilter = searchParams.get("type");
+  const requestedSort = searchParams.get("sort");
+  const filterType: PostFilter = ["suggestion", "question", "topic", "unanswered"].includes(requestedFilter ?? "")
+    ? (requestedFilter as PostFilter)
+    : "all";
+  const sortBy: PostSort = ["oldest", "popular"].includes(requestedSort ?? "")
+    ? (requestedSort as PostSort)
+    : "newest";
+  const searchQuery = searchParams.get("q") ?? "";
+  const posts = useQuery(api.posts.list, {
+    sortBy: sortBy === "oldest" ? "oldest" : "newest",
+  });
   const deletePost = useMutation(api.posts.deletePost);
   const { user } = useUser();
   const [selectedPostId, setSelectedPostId] = useState<Id<"posts"> | null>(null);
+
+  const updateFeed = (updates: { type?: PostFilter; sort?: PostSort; q?: string }) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (updates.type !== undefined) {
+      if (updates.type === "all") params.delete("type");
+      else params.set("type", updates.type);
+    }
+    if (updates.sort !== undefined) {
+      if (updates.sort === "newest") params.delete("sort");
+      else params.set("sort", updates.sort);
+    }
+    if (updates.q !== undefined) {
+      if (updates.q.trim()) params.set("q", updates.q);
+      else params.delete("q");
+    }
+
+    const query = params.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ""}#feed`, { scroll: false });
+  };
+
+  const visiblePosts = useMemo(() => {
+    if (!posts) return posts;
+
+    const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
+    const filtered = posts.filter((post) => {
+      const matchesType =
+        filterType === "all" ||
+        (filterType === "unanswered" ? post.commentCount === 0 : post.type === filterType);
+      const matchesSearch =
+        !normalizedQuery ||
+        post.content.toLocaleLowerCase().includes(normalizedQuery) ||
+        post.authorName.toLocaleLowerCase().includes(normalizedQuery);
+
+      return matchesType && matchesSearch;
+    });
+
+    if (sortBy !== "popular") return filtered;
+
+    return [...filtered].sort(
+      (a, b) => b.upvotes - b.downvotes - (a.upvotes - a.downvotes) || b.createdAt - a.createdAt,
+    );
+  }, [filterType, posts, searchQuery, sortBy]);
 
   const handleDelete = async (postId: Id<"posts">) => {
     if (!confirm("Are you sure you want to delete this post?")) return;
@@ -62,18 +119,28 @@ export function PostList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col justify-between gap-3 rounded-2xl border border-border bg-surface p-3 shadow-sm sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2">
+      <div className="space-y-3 rounded-2xl border border-border bg-surface p-3 shadow-sm">
+        <label className="relative block">
+          <span className="sr-only">Search posts</span>
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => updateFeed({ q: event.target.value })}
+            placeholder="Search posts or authors…"
+            className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-sm outline-none transition placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/10"
+          />
+        </label>
+
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2">
           <div className="hidden items-center gap-2 px-1 text-muted-foreground sm:flex">
             <Filter className="size-4" />
             <span className="text-xs font-bold">Show</span>
           </div>
           <select
-            value={filterType || "all"}
-            onChange={(e) => {
-              const value = e.target.value;
-              setFilterType(value === "all" ? undefined : (value as Exclude<PostFilter, undefined>));
-            }}
+            value={filterType}
+            onChange={(e) => updateFeed({ type: e.target.value as PostFilter })}
             className="block w-full rounded-full border border-border bg-muted px-3 py-2 text-xs font-bold text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 sm:w-auto"
             aria-label="Filter posts by type"
           >
@@ -81,44 +148,51 @@ export function PostList() {
             <option value="topic">Topics</option>
             <option value="question">Questions</option>
             <option value="suggestion">Suggestions</option>
+            <option value="unanswered">Unanswered</option>
           </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="hidden items-center gap-2 px-1 text-muted-foreground sm:flex">
-            <ArrowUpDown className="size-4" />
-            <span className="text-xs font-bold">Sort</span>
           </div>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "newest" | "oldest")}
-            className="block w-full rounded-full border border-border bg-muted px-3 py-2 text-xs font-bold text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 sm:w-auto"
-            aria-label="Sort posts"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-          </select>
+
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-2 px-1 text-muted-foreground sm:flex">
+              <ArrowUpDown className="size-4" />
+              <span className="text-xs font-bold">Sort</span>
+            </div>
+            <select
+              value={sortBy}
+              onChange={(e) => updateFeed({ sort: e.target.value as PostSort })}
+              className="block w-full rounded-full border border-border bg-muted px-3 py-2 text-xs font-bold text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 sm:w-auto"
+              aria-label="Sort posts"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="popular">Most Popular</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {posts === undefined ? (
+      {visiblePosts === undefined ? (
         <div className="flex flex-col items-center justify-center space-y-4 py-16">
           <div className="size-8 animate-spin rounded-full border-2 border-accent border-t-transparent"></div>
           <div className="text-sm font-semibold text-muted-foreground">Listening for posts…</div>
         </div>
-      ) : posts.length === 0 ? (
+      ) : visiblePosts.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center sm:p-12">
           <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-muted">
             <MessageSquare className="size-6 text-muted-foreground" />
           </div>
           <h3 className="font-display text-lg font-bold text-foreground">Nothing in this view yet</h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            {filterType ? `No ${filterType}s have been posted. Try another filter.` : "Start the first useful conversation above."}
+            {searchQuery
+              ? `No posts match “${searchQuery}”. Try a broader search.`
+              : filterType !== "all"
+                ? `No ${filterType} posts are available. Try another filter.`
+                : "Start the first useful conversation above."}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {posts.map((post) => {
+          {visiblePosts.map((post) => {
             const isOwner = user?.id === post.authorClerkId;
             const typeStyle = getTypeStyles(post.type);
             const Icon = typeStyle.icon;
