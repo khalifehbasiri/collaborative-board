@@ -28,7 +28,13 @@ This project reflects the kind of work I enjoy—turning an idea into a usable p
 - Post and comment creation for signed-in members
 - Upvotes and downvotes with one active vote per member and post
 - Author-only deletion for posts and comments
-- Newest and oldest sorting, plus post-type filtering
+- General, Building, Design, and Learning communities with account-backed membership
+- Indexed Hot, New, Top, and Oldest feeds with reactive pagination
+- Full-text search across titles, post bodies, and authors, scoped by community and type
+- Descriptive post titles and stable `/posts/[postId]` discussion links
+- Private saved posts that sync across devices
+- Threaded, collapsible, paginated replies; deleting a comment preserves its replies
+- Post-type and unanswered filtering
 - Responsive landing page, dashboard, navigation, and theme support
 
 ## Technical decisions
@@ -121,15 +127,17 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
 bun run lint
+bun run typecheck
+bun run test
 bun run build
 ```
 
 ## What I would build next
 
 - Real-time presence backed by live session data
-- Search, pagination, and richer feed ranking
 - Notification preferences and activity history
-- Automated tests for permissions and voting behavior
+- Community creation, moderator roles, and moderation queues
+- Contributor profiles and reputation
 - Accessibility audits and broader keyboard-navigation coverage
 
 These are intentionally listed as next steps rather than hidden gaps. I value being clear about what is complete, what can improve, and how I would evolve a product after its first release.
@@ -137,3 +145,10 @@ These are intentionally listed as next steps rather than hidden gaps. I value be
 ## Deployment
 
 The project is configured for Vercel. Add the Clerk and Convex environment variables to the Vercel project, then connect the repository for deployments from Git.
+
+`main` is the production branch. See [the release runbook](docs/deployment.md) for
+the backend-first deployment and migration order. The GitHub quality workflow runs
+lint, type checking, and backend integration tests on pushes and pull requests.
+
+The [Reddit comparison](docs/reddit-comparison.md) records the research, source links,
+implemented scope, and deliberate differences from Reddit.
