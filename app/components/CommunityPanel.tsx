@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { ArrowRight, ChevronUp, MessageCircle, Radio, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronUp,
+  MessageCircle,
+  Radio,
+  ShieldCheck,
+} from "lucide-react";
 
 export function CommunityPanel() {
   const stats = useQuery(api.stats.community);
@@ -18,21 +24,34 @@ export function CommunityPanel() {
           <div className="-mt-6 grid size-12 place-items-center rounded-2xl border-4 border-surface bg-foreground text-background">
             <Radio className="size-5" aria-hidden="true" />
           </div>
-          <h2 className="mt-4 font-display text-lg font-bold tracking-[-0.03em]">The community board</h2>
+          <h2 className="mt-4 font-display text-lg font-bold tracking-[-0.03em]">
+            The community board
+          </h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            A live room for useful ideas, honest questions, and decisions people can understand.
+            A live room for useful ideas, honest questions, and decisions people
+            can understand.
           </p>
           <div className="mt-3 flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-secondary">
-            <span className="size-1.5 rounded-full bg-secondary" aria-hidden="true" />
-            Live demo data
+            <span
+              className="size-1.5 rounded-full bg-secondary"
+              aria-hidden="true"
+            />
+            Live conversations
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 border-y border-border py-4" aria-live="polite">
+          <div
+            className="mt-4 grid grid-cols-2 gap-3 border-y border-border py-4"
+            aria-live="polite"
+          >
             <div>
-              <p className="font-display text-xl font-bold">{formatMetric(stats?.members)}</p>
+              <p className="font-display text-xl font-bold">
+                {formatMetric(stats?.members)}
+              </p>
               <p className="text-[11px] text-muted-foreground">members</p>
             </div>
             <div>
-              <p className="font-display text-xl font-bold text-secondary">{formatMetric(stats?.ideas)}</p>
+              <p className="font-display text-xl font-bold text-secondary">
+                {formatMetric(stats?.ideas)}
+              </p>
               <p className="text-[11px] text-muted-foreground">ideas shared</p>
             </div>
           </div>
@@ -65,7 +84,10 @@ export function CommunityPanel() {
             Vote for usefulness, not familiarity.
           </li>
         </ol>
-        <Link href="/about" className="mt-4 inline-flex text-xs font-bold text-foreground hover:text-accent">
+        <Link
+          href="/about"
+          className="mt-4 inline-flex text-xs font-bold text-foreground hover:text-accent"
+        >
           Why these rules matter
         </Link>
       </section>

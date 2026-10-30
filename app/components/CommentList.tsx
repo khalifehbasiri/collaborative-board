@@ -1,125 +1,246 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useConvexAuth, useMutation, usePaginatedQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
-import { MessageSquareText, Send, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Reply, Trash2 } from "lucide-react";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { errorMessage } from "../../lib/errors";
 
-interface CommentListProps {
+type Comment = FunctionReturnType<typeof api.comments.thread>["page"][number];
+
+function ReplyForm({
+  postId,
+  parentId,
+  onDone,
+}: {
   postId: Id<"posts">;
-}
+  parentId?: Id<"comments">;
+  onDone?: () => void;
+}) {
+  const { isAuthenticated } = useConvexAuth();
+  const create = useMutation(api.comments.create);
+  const [content, setContent] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  if (!isAuthenticated)
+    return (
+      <p className="rounded-xl bg-muted p-3 text-xs text-muted-foreground">
+        Sign in from the top navigation to reply.
+      </p>
+    );
 
-export function CommentList({ postId }: CommentListProps) {
-  const { user } = useUser();
-  const comments = useQuery(api.comments.list, { postId });
-  const createComment = useMutation(api.comments.create);
-  const deleteComment = useMutation(api.comments.deleteComment);
-  
-  const [newComment, setNewComment] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!newComment.trim()) return;
-
-    setIsSubmitting(true);
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!content.trim() || pending) return;
+    setPending(true);
+    setError("");
     try {
-      await createComment({ postId, content: newComment.trim() });
-      setNewComment("");
+      await create({ postId, parentId, content: content.trim() });
+      setContent("");
+      onDone?.();
     } catch (error) {
-      console.error("Failed to add comment:", error);
+      setError(errorMessage(error));
     } finally {
-      setIsSubmitting(false);
+      setPending(false);
     }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
-
-  const handleDelete = async (commentId: Id<"comments">) => {
-    if (!confirm("Are you sure you want to delete this comment?")) return;
-    try {
-      await deleteComment({ commentId });
-    } catch (error) {
-      console.error("Failed to delete comment:", error);
-    }
-  };
-
-  if (comments === undefined) {
-    return <div className="py-8 text-center text-sm font-semibold text-muted-foreground">Loading comments…</div>;
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="mb-4 flex-1 space-y-3 overflow-y-auto pr-1">
-        {comments.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-background px-5 py-10 text-center">
-            <MessageSquareText className="mx-auto size-6 text-muted-foreground" />
-            <p className="mt-3 text-sm font-bold text-foreground">No replies yet</p>
-            <p className="mt-1 text-xs text-muted-foreground">Add the first useful thought.</p>
-          </div>
-        ) : (
-          comments.map((comment) => (
-            <article key={comment._id} className="group rounded-2xl bg-background p-4">
-              <div className="mb-2 flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="grid size-7 place-items-center rounded-full bg-foreground font-display text-[10px] font-bold text-background">
-                    {comment.authorName.charAt(0).toUpperCase()}
-                  </span>
-                  <span className="text-xs font-bold text-foreground">{comment.authorName}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <time className="text-[10px] text-muted-foreground">
-                    {new Date(comment.createdAt).toLocaleDateString()}
-                  </time>
-                  {user?.id === comment.authorClerkId && (
-                    <button
-                      onClick={() => handleDelete(comment._id)}
-                      className="grid size-7 place-items-center rounded-full text-muted-foreground opacity-60 transition hover:bg-red-500/10 hover:text-red-500 focus:opacity-100 group-hover:opacity-100"
-                      aria-label="Delete comment"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
-                  )}
-                </div>
-              </div>
-              <p className="pl-9 text-sm leading-6 text-muted-foreground">{comment.content}</p>
-            </article>
-          ))
+    <form onSubmit={submit} className="my-3 space-y-2">
+      <label className="block">
+        <span className="sr-only">
+          {parentId ? "Write a reply" : "Add a comment"}
+        </span>
+        <textarea
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          maxLength={500}
+          required
+          rows={3}
+          disabled={pending}
+          placeholder={
+            parentId ? "Reply to this comment…" : "Add to the conversation…"
+          }
+          className="w-full resize-y rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-accent"
+        />
+      </label>
+      <div className="flex items-center justify-end gap-3">
+        <span className="text-[10px] text-muted-foreground">
+          {content.length}/500
+        </span>
+        {onDone && (
+          <button
+            type="button"
+            onClick={onDone}
+            className="text-xs font-bold text-muted-foreground"
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          disabled={pending || !content.trim()}
+          className="rounded-full bg-accent px-4 py-2 text-xs font-bold text-accent-foreground disabled:opacity-40"
+        >
+          {pending ? "Posting…" : "Reply"}
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="text-sm text-red-500">
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}
+
+function CommentNode({ comment }: { comment: Comment }) {
+  const { user } = useUser();
+  const { isAuthenticated } = useConvexAuth();
+  const remove = useMutation(api.comments.deleteComment);
+  const [replying, setReplying] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  async function deleteComment() {
+    if (!confirm("Delete your comment? Replies from other people will stay."))
+      return;
+    setPending(true);
+    setError("");
+    try {
+      await remove({ commentId: comment._id });
+    } catch (error) {
+      setError(errorMessage(error));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <article className="min-w-0 border-l-2 border-border pl-3 sm:pl-4">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-bold">{comment.authorName}</span>
+        <time
+          className="text-[10px] text-muted-foreground"
+          dateTime={new Date(comment.createdAt).toISOString()}
+        >
+          {new Date(comment.createdAt).toLocaleDateString()}
+        </time>
+      </div>
+      <p
+        className={`mt-2 whitespace-pre-wrap break-words text-sm leading-6 ${comment.deleted ? "italic text-muted-foreground" : "text-foreground"}`}
+      >
+        {comment.content}
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-bold text-muted-foreground">
+        {(comment.depth ?? 0) < 8 && isAuthenticated && (
+          <button
+            onClick={() => setReplying(!replying)}
+            aria-expanded={replying}
+            className="inline-flex items-center gap-1 py-1 hover:text-accent"
+          >
+            <Reply className="size-3.5" />
+            Reply
+          </button>
+        )}
+        {comment.hasReplies && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            aria-expanded={expanded}
+            className="inline-flex items-center gap-1 py-1 hover:text-accent"
+          >
+            {expanded ? (
+              <ChevronDown className="size-3.5" />
+            ) : (
+              <ChevronRight className="size-3.5" />
+            )}
+            {expanded ? "Collapse replies" : "Show replies"}
+          </button>
+        )}
+        {!comment.deleted && user?.id === comment.authorClerkId && (
+          <button
+            onClick={deleteComment}
+            disabled={pending}
+            className="inline-flex items-center gap-1 py-1 hover:text-red-500 disabled:opacity-50"
+            aria-label="Delete comment"
+          >
+            <Trash2 className="size-3.5" />
+            Delete
+          </button>
         )}
       </div>
-
-      {user ? (
-        <form onSubmit={handleSubmit} className="relative border-t border-border pt-4">
-          <textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Add a useful reply…"
-            maxLength={500}
-            className="h-24 w-full resize-none rounded-xl border border-border bg-background p-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
-            disabled={isSubmitting}
-          />
-          <button
-            type="submit"
-            disabled={!newComment.trim() || isSubmitting}
-            className="absolute bottom-3 right-3 grid size-8 place-items-center rounded-full bg-accent text-white transition hover:brightness-105 disabled:bg-muted disabled:text-muted-foreground"
-            aria-label="Post comment"
-          >
-            <Send className="size-3.5" />
-          </button>
-        </form>
-      ) : (
-        <div className="rounded-xl bg-muted px-4 py-3 text-center text-xs text-muted-foreground">
-          Sign in from the top navigation to reply.
+      {error && (
+        <p role="alert" className="mt-2 text-sm text-red-500">
+          {error}
+        </p>
+      )}
+      {replying && (
+        <ReplyForm
+          postId={comment.postId}
+          parentId={comment._id}
+          onDone={() => {
+            setReplying(false);
+            setExpanded(true);
+          }}
+        />
+      )}
+      {expanded && comment.hasReplies && (
+        <div className="mt-4">
+          <Thread postId={comment.postId} parentId={comment._id} />
         </div>
       )}
+    </article>
+  );
+}
+
+function Thread({
+  postId,
+  parentId,
+}: {
+  postId: Id<"posts">;
+  parentId?: Id<"comments">;
+}) {
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.comments.thread,
+    { postId, parentId },
+    { initialNumItems: 10 },
+  );
+  return (
+    <div className="space-y-5">
+      {status === "LoadingFirstPage" ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          Loading replies…
+        </p>
+      ) : results.length === 0 && !parentId ? (
+        <p className="py-5 text-center text-sm text-muted-foreground">
+          No replies yet. Add the first useful thought.
+        </p>
+      ) : (
+        results.map((comment) => (
+          <CommentNode key={comment._id} comment={comment} />
+        ))
+      )}
+      {(status === "CanLoadMore" || status === "LoadingMore") && (
+        <button
+          onClick={() => loadMore(10)}
+          disabled={status === "LoadingMore"}
+          className="rounded-full border border-border px-3 py-2 text-xs font-bold disabled:opacity-50"
+        >
+          {status === "LoadingMore" ? "Loading…" : "More replies"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function CommentList({ postId }: { postId: Id<"posts"> }) {
+  return (
+    <div className="space-y-6">
+      <ReplyForm postId={postId} />
+      <Thread postId={postId} />
     </div>
   );
 }

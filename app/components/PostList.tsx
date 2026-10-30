@@ -1,303 +1,215 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { VoteButton } from "./VoteButton";
-import { CommentList } from "./CommentList";
-import { useUser } from "@clerk/nextjs";
-import { Id } from "../../convex/_generated/dataModel";
-import { Trash2, MessageSquare, HelpCircle, Hash, MessageCircle, X, Filter, ArrowUpDown, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { usePaginatedQuery } from "convex/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import Link from "next/link";
+import { Search } from "lucide-react";
+import { api } from "../../convex/_generated/api";
+import { findCommunity } from "../../lib/communities";
+import { PostCard } from "./PostCard";
+
+type Sort = "newest" | "oldest" | "hot" | "top";
+type Filter = "all" | "suggestion" | "question" | "topic" | "unanswered";
 
 export function PostList() {
-  type PostFilter = "all" | "suggestion" | "question" | "topic" | "unanswered";
-  type PostSort = "newest" | "oldest" | "popular";
+  const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const requestedFilter = searchParams.get("type");
-  const requestedSort = searchParams.get("sort");
-  const filterType: PostFilter = ["suggestion", "question", "topic", "unanswered"].includes(requestedFilter ?? "")
-    ? (requestedFilter as PostFilter)
+  const { isSignedIn } = useUser();
+  const saved = params.get("view") === "saved";
+  const requestedSort = params.get("sort");
+  const sort: Sort =
+    requestedSort === "popular"
+      ? "top"
+      : ["newest", "oldest", "top", "hot"].includes(requestedSort ?? "")
+        ? (requestedSort as Sort)
+        : "hot";
+  const requestedType = params.get("type");
+  const type: Filter = [
+    "suggestion",
+    "question",
+    "topic",
+    "unanswered",
+  ].includes(requestedType ?? "")
+    ? (requestedType as Filter)
     : "all";
-  const sortBy: PostSort = ["oldest", "popular"].includes(requestedSort ?? "")
-    ? (requestedSort as PostSort)
-    : "newest";
-  const searchQuery = searchParams.get("q") ?? "";
-  const posts = useQuery(api.posts.list, {
-    sortBy: sortBy === "oldest" ? "oldest" : "newest",
+  const search = (params.get("q") ?? "").slice(0, 200);
+  const community = findCommunity(params.get("community"));
+  const feed = usePaginatedQuery(
+    api.posts.feed,
+    saved
+      ? "skip"
+      : {
+          sort,
+          community: community?.slug,
+          search,
+          type: type === "all" || type === "unanswered" ? undefined : type,
+          unanswered: type === "unanswered",
+        },
+    { initialNumItems: 15 },
+  );
+  const savedFeed = usePaginatedQuery(api.posts.saved, saved ? {} : "skip", {
+    initialNumItems: 15,
   });
-  const deletePost = useMutation(api.posts.deletePost);
-  const { user } = useUser();
-  const [selectedPostId, setSelectedPostId] = useState<Id<"posts"> | null>(null);
+  const { results, status, loadMore } = saved ? savedFeed : feed;
 
-  const updateFeed = (updates: { type?: PostFilter; sort?: PostSort; q?: string }) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (updates.type !== undefined) {
-      if (updates.type === "all") params.delete("type");
-      else params.set("type", updates.type);
-    }
-    if (updates.sort !== undefined) {
-      if (updates.sort === "newest") params.delete("sort");
-      else params.set("sort", updates.sort);
-    }
-    if (updates.q !== undefined) {
-      if (updates.q.trim()) params.set("q", updates.q);
-      else params.delete("q");
-    }
-
-    const query = params.toString();
-    router.replace(`${pathname}${query ? `?${query}` : ""}#feed`, { scroll: false });
-  };
-
-  const visiblePosts = useMemo(() => {
-    if (!posts) return posts;
-
-    const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
-    const filtered = posts.filter((post) => {
-      const matchesType =
-        filterType === "all" ||
-        (filterType === "unanswered" ? post.commentCount === 0 : post.type === filterType);
-      const matchesSearch =
-        !normalizedQuery ||
-        post.content.toLocaleLowerCase().includes(normalizedQuery) ||
-        post.authorName.toLocaleLowerCase().includes(normalizedQuery);
-
-      return matchesType && matchesSearch;
-    });
-
-    if (sortBy !== "popular") return filtered;
-
-    return [...filtered].sort(
-      (a, b) => b.upvotes - b.downvotes - (a.upvotes - a.downvotes) || b.createdAt - a.createdAt,
-    );
-  }, [filterType, posts, searchQuery, sortBy]);
-
-  const handleDelete = async (postId: Id<"posts">) => {
-    if (!confirm("Are you sure you want to delete this post?")) return;
-    try {
-      await deletePost({ postId });
-    } catch (error) {
-      console.error("Failed to delete post:", error);
-    }
-  };
-
-  const getTypeStyles = (type: string) => {
-    switch (type) {
-      case "suggestion":
-        return {
-          bg: "bg-accent/10",
-          text: "text-accent",
-          rail: "bg-accent",
-          icon: MessageSquare
-        };
-      case "question":
-        return {
-          bg: "bg-secondary/10",
-          text: "text-secondary",
-          rail: "bg-secondary",
-          icon: HelpCircle
-        };
-      case "topic":
-        return {
-          bg: "bg-violet-500/10",
-          text: "text-violet-500",
-          rail: "bg-violet-500",
-          icon: Hash
-        };
-      default:
-        return {
-          bg: "bg-muted",
-          text: "text-muted-foreground",
-          rail: "bg-muted-foreground",
-          icon: MessageSquare
-        };
-    }
-  };
+  function update(key: string, value: string) {
+    const next = new URLSearchParams(params.toString());
+    if (!value || value === "all") next.delete(key);
+    else next.set(key, value);
+    router.replace(`${pathname}?${next.toString()}#feed`, { scroll: false });
+  }
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3 rounded-2xl border border-border bg-surface p-3 shadow-sm">
-        <label className="relative block">
-          <span className="sr-only">Search posts</span>
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(event) => updateFeed({ q: event.target.value })}
-            placeholder="Search posts or authors…"
-            className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-sm outline-none transition placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/10"
-          />
-        </label>
-
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2">
-          <div className="hidden items-center gap-2 px-1 text-muted-foreground sm:flex">
-            <Filter className="size-4" />
-            <span className="text-xs font-bold">Show</span>
-          </div>
-          <select
-            value={filterType}
-            onChange={(e) => updateFeed({ type: e.target.value as PostFilter })}
-            className="block w-full rounded-full border border-border bg-muted px-3 py-2 text-xs font-bold text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 sm:w-auto"
-            aria-label="Filter posts by type"
-          >
-            <option value="all">All Posts</option>
-            <option value="topic">Topics</option>
-            <option value="question">Questions</option>
-            <option value="suggestion">Suggestions</option>
-            <option value="unanswered">Unanswered</option>
-          </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-2 px-1 text-muted-foreground sm:flex">
-              <ArrowUpDown className="size-4" />
-              <span className="text-xs font-bold">Sort</span>
-            </div>
-            <select
-              value={sortBy}
-              onChange={(e) => updateFeed({ sort: e.target.value as PostSort })}
-              className="block w-full rounded-full border border-border bg-muted px-3 py-2 text-xs font-bold text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 sm:w-auto"
-              aria-label="Sort posts"
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="popular">Most Popular</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {visiblePosts === undefined ? (
-        <div className="flex flex-col items-center justify-center space-y-4 py-16">
-          <div className="size-8 animate-spin rounded-full border-2 border-accent border-t-transparent"></div>
-          <div className="text-sm font-semibold text-muted-foreground">Listening for posts…</div>
-        </div>
-      ) : visiblePosts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center sm:p-12">
-          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-muted">
-            <MessageSquare className="size-6 text-muted-foreground" />
-          </div>
-          <h3 className="font-display text-lg font-bold text-foreground">Nothing in this view yet</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {searchQuery
-              ? `No posts match “${searchQuery}”. Try a broader search.`
-              : filterType !== "all"
-                ? `No ${filterType} posts are available. Try another filter.`
-                : "Start the first useful conversation above."}
+      {saved ? (
+        <div className="rounded-2xl border border-border bg-surface p-5">
+          <h2 className="font-display text-xl font-bold">Saved for later</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your private collection, most recently saved first.
           </p>
+          <Link
+            href="/dashboard#feed"
+            className="mt-3 inline-flex text-xs font-bold text-accent"
+          >
+            ← All conversations
+          </Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {visiblePosts.map((post) => {
-            const isOwner = user?.id === post.authorClerkId;
-            const typeStyle = getTypeStyles(post.type);
-            const Icon = typeStyle.icon;
-
-            return (
-              <article
-                key={post._id}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition duration-200 hover:border-muted-foreground/60 hover:shadow-md"
+        <div className="space-y-3 rounded-2xl border border-border bg-surface p-3">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const data = new FormData(event.currentTarget);
+              update("q", String(data.get("q") ?? "").trim());
+            }}
+            className="flex gap-2"
+          >
+            <label className="relative block min-w-0 flex-1">
+              <span className="sr-only">Search posts, titles, or authors</span>
+              <Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" />
+              <input
+                key={search}
+                name="q"
+                type="search"
+                defaultValue={search}
+                maxLength={200}
+                placeholder={
+                  community
+                    ? `Search c/${community.slug}…`
+                    : "Search posts, titles, or authors…"
+                }
+                className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:border-accent"
+              />
+            </label>
+            <button className="rounded-xl bg-foreground px-4 text-xs font-bold text-background">
+              Search
+            </button>
+          </form>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex gap-1" role="group" aria-label="Feed order">
+              {(
+                [
+                  { value: "hot", label: "Hot" },
+                  { value: "newest", label: "New" },
+                  { value: "top", label: "Top" },
+                  { value: "oldest", label: "Oldest" },
+                ] as const
+              ).map((item) => (
+                <button
+                  key={item.value}
+                  onClick={() => update("sort", item.value)}
+                  disabled={!!search || type === "unanswered"}
+                  aria-pressed={sort === item.value}
+                  className={`rounded-full px-3 py-2 text-xs font-bold transition disabled:opacity-40 ${sort === item.value ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-muted"}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              Show
+              <select
+                value={type}
+                onChange={(event) => update("type", event.target.value)}
+                className="rounded-full border border-border bg-background px-3 py-2 font-bold text-foreground"
+                aria-label="Filter posts by type"
               >
-                <span className={`absolute inset-y-0 left-0 w-1 ${typeStyle.rail}`} aria-hidden="true" />
-                <div className="p-4 pl-5 sm:p-6 sm:pl-7">
-                  <div className="mb-4 flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className={`grid size-9 shrink-0 place-items-center rounded-xl ${typeStyle.bg} ${typeStyle.text}`}>
-                        <Icon className="size-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
-                          <span className={`font-bold capitalize ${typeStyle.text}`}>{post.type}</span>
-                          <span className="text-muted-foreground">·</span>
-                          <span className="truncate font-semibold text-foreground">{post.authorName}</span>
-                          <span className="text-muted-foreground">·</span>
-                          <time className="text-muted-foreground">
-                            {new Date(post.createdAt).toLocaleDateString(undefined, {
-                              month: 'short',
-                              day: 'numeric'
-                            })}
-                          </time>
-                        </div>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">shared with the community</p>
-                      </div>
-                    </div>
-
-                    {isOwner && (
-                      <button
-                        onClick={() => handleDelete(post._id)}
-                        className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground opacity-60 transition hover:bg-red-500/10 hover:text-red-500 focus:opacity-100 group-hover:opacity-100"
-                        aria-label="Delete post"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    )}
-                  </div>
-
-                  <p className="whitespace-pre-wrap font-display text-[17px] font-semibold leading-7 tracking-[-0.02em] text-foreground sm:text-lg">
-                    {post.content}
-                  </p>
-
-                  <div className="mt-5 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <VoteButton 
-                        postId={post._id} 
-                        upvotes={post.upvotes || 0} 
-                        downvotes={post.downvotes || 0} 
-                      />
-                      <button
-                        onClick={() => setSelectedPostId(post._id)}
-                        className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                        aria-label={`Open ${post.commentCount || 0} comments`}
-                      >
-                        <MessageCircle className="size-4" />
-                        <span className="text-xs font-bold">{post.commentCount || 0}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+                <option value="all">All posts</option>
+                <option value="suggestion">Suggestions</option>
+                <option value="question">Questions</option>
+                <option value="topic">Topics</option>
+                <option value="unanswered">Unanswered</option>
+              </select>
+            </label>
+          </div>
+          <p className="px-1 text-[11px] text-muted-foreground">
+            {search
+              ? `Search results for “${search}”, ranked by relevance.`
+              : type === "unanswered"
+                ? "Posts without replies, newest first."
+                : sort === "hot"
+                  ? "Hot balances net votes and recency. Top shows the highest net vote scores."
+                  : "Live conversations, updated as the community contributes."}
+            {search && (
+              <button
+                onClick={() => update("q", "")}
+                className="ml-2 font-bold text-accent"
+              >
+                Clear search
+              </button>
+            )}
+          </p>
         </div>
       )}
 
-      {selectedPostId && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-[2px] sm:items-center sm:p-4"
-          onClick={() => setSelectedPostId(null)}
-          role="presentation"
+      {saved && !isSignedIn ? (
+        <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          Sign in from the top navigation to see your saved posts.
+        </p>
+      ) : status === "LoadingFirstPage" ? (
+        <p
+          role="status"
+          className="py-12 text-center text-sm text-muted-foreground"
         >
-          <div 
-            className="flex h-[86dvh] w-full max-w-xl flex-col rounded-t-3xl border border-border bg-surface shadow-2xl sm:h-[640px] sm:rounded-3xl"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="comments-title"
-          >
-            <div className="flex items-center justify-between border-b border-border p-4 sm:px-5">
-              <div>
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-accent">
-                  Conversation
-                </p>
-                <h3 id="comments-title" className="mt-0.5 font-display text-lg font-bold">Comments</h3>
-              </div>
-              <button 
-                onClick={() => setSelectedPostId(null)}
-                className="grid size-9 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                aria-label="Close comments"
-              >
-                <X className="size-5" />
-              </button>
+          Loading conversations…
+        </p>
+      ) : (
+        <>
+          {results.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center">
+              <h3 className="font-display text-lg font-bold">
+                {saved
+                  ? "Keep a good conversation close."
+                  : "No conversations in this view yet."}
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {saved
+                  ? "Use Save on any post to find it here later."
+                  : search
+                    ? "Try another search or clear your filters."
+                    : "Start a conversation above, or explore another community."}
+              </p>
             </div>
-            <div className="flex-1 overflow-hidden p-4 sm:p-5">
-              <CommentList postId={selectedPostId} />
-            </div>
+          )}
+          <div className="space-y-3">
+            {results.map((post) => (
+              <PostCard key={post._id} post={post} />
+            ))}
           </div>
-        </div>
+          {(status === "CanLoadMore" || status === "LoadingMore") && (
+            <button
+              onClick={() => loadMore(15)}
+              disabled={status === "LoadingMore"}
+              className="w-full rounded-full border border-border bg-surface px-4 py-3 text-sm font-bold hover:bg-muted disabled:opacity-50"
+            >
+              {status === "LoadingMore"
+                ? "Loading…"
+                : "Load more conversations"}
+            </button>
+          )}
+        </>
       )}
     </div>
   );

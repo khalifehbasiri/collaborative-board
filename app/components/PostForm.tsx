@@ -1,31 +1,56 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useConvexAuth, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
 import { CircleHelp, Lightbulb, MessageSquareText, Send } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import {
+  communities,
+  findCommunity,
+  type CommunitySlug,
+} from "../../lib/communities";
+import { errorMessage } from "../../lib/errors";
 
 type PostType = "suggestion" | "question" | "topic";
 
 export function PostForm() {
   const { isSignedIn, user } = useUser();
+  const { isAuthenticated } = useConvexAuth();
+  const params = useSearchParams();
+  const activeCommunity =
+    findCommunity(params.get("community"))?.slug ?? "general";
   const createPost = useMutation(api.posts.create);
+  const [title, setTitle] = useState("");
+  const [selectedCommunity, setSelectedCommunity] = useState<
+    CommunitySlug | ""
+  >("");
+  const community = selectedCommunity || activeCommunity;
+  const [error, setError] = useState("");
   const [content, setContent] = useState("");
   const [type, setType] = useState<PostType>("suggestion");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSignedIn || !content.trim() || isSubmitting) return;
+    if (!isAuthenticated || !title.trim() || !content.trim() || isSubmitting)
+      return;
 
     setIsSubmitting(true);
+    setError("");
     try {
-      await createPost({ content: content.trim(), type });
+      await createPost({
+        title: title.trim(),
+        content: content.trim(),
+        type,
+        community,
+      });
+      setTitle("");
       setContent("");
       setType("suggestion");
     } catch (error) {
-      console.error("Failed to create post:", error);
+      setError(errorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -37,9 +62,12 @@ export function PostForm() {
         <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-accent">
           Your voice belongs here
         </p>
-        <h2 className="mt-2 font-display text-xl font-bold tracking-[-0.03em]">Join the conversation</h2>
+        <h2 className="mt-2 font-display text-xl font-bold tracking-[-0.03em]">
+          Join the conversation
+        </h2>
         <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-          Sign in from the top navigation to share an idea, ask a question, or open a topic for the community.
+          Sign in from the top navigation to share an idea, ask a question, or
+          open a topic for the community.
         </p>
       </div>
     );
@@ -55,12 +83,51 @@ export function PostForm() {
           {(user?.firstName?.[0] || user?.username?.[0] || "Y").toUpperCase()}
         </span>
         <div>
-          <h2 className="font-display text-base font-bold tracking-[-0.02em]">Add to the board</h2>
-          <p className="text-xs text-muted-foreground">Give the room something clear to respond to.</p>
+          <h2 className="font-display text-base font-bold tracking-[-0.02em]">
+            Add to the board
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Give the room something clear to respond to.
+          </p>
         </div>
       </div>
 
       <div className="p-4 sm:p-5">
+        <label className="mb-3 block text-xs font-bold text-muted-foreground">
+          Community
+          <select
+            value={community}
+            onChange={(event) =>
+              setSelectedCommunity(event.target.value as CommunitySlug)
+            }
+            disabled={isSubmitting}
+            className="mt-1.5 block w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground"
+          >
+            {communities.map((item) => (
+              <option key={item.slug} value={item.slug}>
+                c/{item.slug} — {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="mb-3 block text-xs font-bold text-muted-foreground">
+          Title
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            maxLength={160}
+            required
+            disabled={isSubmitting}
+            placeholder="A clear title starts a good conversation"
+            className="mt-1.5 block w-full rounded-xl border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:border-accent"
+          />
+        </label>
+        <label
+          htmlFor="content"
+          className="mb-1.5 block text-xs font-bold text-muted-foreground"
+        >
+          Your post
+        </label>
         <textarea
           id="content"
           value={content}
@@ -69,6 +136,7 @@ export function PostForm() {
           rows={4}
           maxLength={800}
           required
+          disabled={isSubmitting}
           className="w-full resize-none rounded-xl border border-border bg-background p-4 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
         />
 
@@ -100,10 +168,17 @@ export function PostForm() {
           </fieldset>
 
           <div className="flex items-center justify-between gap-4 sm:justify-end">
-            <span className="font-mono text-[10px] text-muted-foreground">{content.length}/800</span>
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {content.length}/800
+            </span>
             <button
               type="submit"
-              disabled={!content.trim() || isSubmitting}
+              disabled={
+                !isAuthenticated ||
+                !title.trim() ||
+                !content.trim() ||
+                isSubmitting
+              }
               className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
             >
               {isSubmitting ? "Posting…" : "Post"}
@@ -111,6 +186,17 @@ export function PostForm() {
             </button>
           </div>
         </div>
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-red-500">
+            {error}
+          </p>
+        )}
+        {community !== activeCommunity && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            This post will appear in c/{community}. Select that community above
+            the feed to see it.
+          </p>
+        )}
       </div>
     </form>
   );
